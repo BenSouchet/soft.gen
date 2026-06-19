@@ -57,44 +57,42 @@
 **************************************************************************** /]
 
 [comment Encode an attribute value as a Go literal: strings quoted+escaped, everything else (bool/int/enum value) by its textual form. /]
-[query private encodeAttr(value : OclAny, attr : EAttribute) : String =
+[query private encodeAttr(value : OclAny, attr : EAttribute, packagePath : String, imports : OclAny) : String =
 	if value.oclIsUndefined() then 'nil'
+	else if attr.eType.oclIsKindOf(EEnum) then
+		getImportedIdentifier(attr.eType.ePackage.getQualifiedInterfaceIdentifier(attr.eType.name), packagePath, imports) + '(' + attr.eType.oclAsType(EEnum).eLiterals->select(l : EEnumLiteral | l.name = value.toString() or l.literal = value.toString())->first().value.toString() + ')'
 	else if attr.eType.name = 'EString' then
 		'"' + value.toString().replaceAll('\\\\','\\\\\\\\').replaceAll('"', '\\\\"').replaceAll('\\n','\\\\n').replaceAll('\\r','\\\\r') + '"'
 	else value.toString()
-	endif endif/]
+	endif endif endif/]
 
 [comment The set of implementation package paths of every object held in an annotation's contents (so their GetFactory/GetPackage can be imported). /]
 [query private getContentPackagePaths(aPackage : EPackage) : Set(String) =
-	aPackage.eAllContents(EAnnotation).contents.eClass.ePackage.getImplementationPackagePath()->asSet()/]
+	aPackage.eAllContents(EAnnotation).contents.eClass().ePackage.getImplementationPackagePath()->asSet()/]
 
 [template private generateContent(eObject : EObject, depth : Integer, packagePath : String, imports : OclAny)]
-o[depth/] := [getImportedIdentifier(eObject.eClass.ePackage.getImplementationPackagePath() + '.GetFactory()', packagePath, imports)/].Create([getImportedIdentifier(eObject.eClass.ePackage.getImplementationPackagePath() + '.GetPackage()', packagePath, imports)/].GetEClassifier("[eObject.eClass.name/]").([getImportedIdentifier(getEcorePackage().getQualifiedInterfaceIdentifier('EClass'), packagePath, imports)/]))
-[for (f : EStructuralFeature | eObject.eClass.eAllStructuralFeatures->select(sf | eObject.eIsSet(sf)))]
-[if f.oclIsKindOf(EReference) and f.oclAsType(EReference).containment]
-[if f.many]
-[for (child : EObject | eObject.eGet(f).oclAsType(Collection(EObject)))]
+[let cls : EClass = eObject.eClass()]
+o[depth/] := [getImportedIdentifier(cls.ePackage.getImplementationPackagePath() + '.GetFactory()', packagePath, imports)/].Create([getImportedIdentifier(cls.ePackage.getImplementationPackagePath() + '.GetPackage()', packagePath, imports)/].GetEClassifier("[cls.name/]").([getImportedIdentifier(getEcorePackage().getQualifiedInterfaceIdentifier('EClass'), packagePath, imports)/]))
+[for (a : EAttribute | cls.eAllAttributes->select(x | eObject.eIsSet(x)))]
+[if a.many]
+[for (v : OclAny | eObject.eGet(a))]
+o[depth/].EGetResolve(o[depth/].EClass().GetEStructuralFeatureFromName("[a.name/]"), false).([getImportedIdentifier(getEcorePackage().getQualifiedInterfaceIdentifier('EList'), packagePath, imports)/]).Add([encodeAttr(v, a, packagePath, imports)/])
+[/for]
+[else]
+o[depth/].ESet(o[depth/].EClass().GetEStructuralFeatureFromName("[a.name/]"), [encodeAttr(eObject.eGet(a), a, packagePath, imports)/])
+[/if]
+[/for]
+[for (child : EObject | eObject.eContents())]
 {
 [child.generateContent(depth + 1, packagePath, imports)/]
-o[depth/].EGetResolve(o[depth/].EClass().GetEStructuralFeatureFromName("[f.name/]"), false).([getImportedIdentifier(getEcorePackage().getQualifiedInterfaceIdentifier('EList'), packagePath, imports)/]).Add(o[depth + 1/])
+[if child.eContainmentFeature().many]
+o[depth/].EGetResolve(o[depth/].EClass().GetEStructuralFeatureFromName("[child.eContainmentFeature().name/]"), false).([getImportedIdentifier(getEcorePackage().getQualifiedInterfaceIdentifier('EList'), packagePath, imports)/]).Add(o[depth + 1/])
+[else]
+o[depth/].ESet(o[depth/].EClass().GetEStructuralFeatureFromName("[child.eContainmentFeature().name/]"), o[depth + 1/])
+[/if]
 }
 [/for]
-[else]
-{
-[eObject.eGet(f).oclAsType(EObject).generateContent(depth + 1, packagePath, imports)/]
-o[depth/].ESet(o[depth/].EClass().GetEStructuralFeatureFromName("[f.name/]"), o[depth + 1/])
-}
-[/if]
-[elseif f.oclIsKindOf(EAttribute)]
-[if f.many]
-[for (v : OclAny | eObject.eGet(f).oclAsType(Collection(OclAny)))]
-o[depth/].EGetResolve(o[depth/].EClass().GetEStructuralFeatureFromName("[f.name/]"), false).([getImportedIdentifier(getEcorePackage().getQualifiedInterfaceIdentifier('EList'), packagePath, imports)/]).Add([encodeAttr(v, f.oclAsType(EAttribute))/])
-[/for]
-[else]
-o[depth/].ESet(o[depth/].EClass().GetEStructuralFeatureFromName("[f.name/]"), [encodeAttr(eObject.eGet(f), f.oclAsType(EAttribute))/])
-[/if]
-[/if]
-[/for]
+[/let]
 [/template]
 
 

@@ -4,65 +4,73 @@ Branch `feat/emit-annotation-contents`.
 
 ## What & why
 
-Today the Go generator reproduces only an `EAnnotation`'s `source` + `details`
-(string→string) into the generated `initialize*Annotations()` code. Its
-`contents` (model objects held inside an annotation) are dropped, so the
-in-memory metamodel built by `GetPackage()` lacks them — even though the `.ecore`
-on disk and the runtime XMI loader keep them.
+The Go generator reproduced only an `EAnnotation`'s `source` + `details`
+(string→string) into the generated `initialize*Annotations()` code; its
+`contents` (model objects held inside an annotation) were dropped, so the
+in-memory metamodel built by `GetPackage()` lacked them. This change reproduces
+`EAnnotation.contents` so the generated metamodel is complete — used by a
+behaviour/UI metadata layer that stores typed metadata objects in annotation
+contents, with no runtime `.ecore` load.
 
-This change reproduces `EAnnotation.contents` so the generated metamodel is
-complete (used by a behaviour/UI metadata layer that stores typed metadata
-objects in annotation contents). Contents are rebuilt **reflectively**
-(`factory.Create(eClass)` + `EClass().GetEStructuralFeatureFromName(...)`), so no
-cross-package meta-object getters are needed — only each content package's
-`GetFactory()` / `GetPackage()` are imported.
+## Status: ✅ verified end to end
+
+Built with Maven 3.9 + JDK 25, ran the generator jar directly, regenerated a META
+metamodel + a target model carrying typed metadata in an annotation's contents:
+- the Acceleo templates compile;
+- the generated Go compiles (`go build`);
+- the generated in-memory metamodel carries the metadata, read via the typed Go
+  API: `identity parts=[id kind] sep=" | ", 2 fields, layout groups=1`.
 
 ## Edits (`soft.generators/soft.generator.go/.../lib/pack/generatePackageImplementation.mtl`)
 
-1. **`encodeAttr` query** — encodes an attribute value as a Go literal (strings
-   quoted+escaped; bool/int/enum by textual form).
-2. **`getContentPackagePaths` query** — implementation package paths of every
-   object held in any annotation's contents (added to the `packages` import set).
-3. **`generateContent` template** — recursively emits Go that reconstructs a
-   content object and its containment subtree into `o<depth>` variables
-   (depth-named to avoid shadow collisions), setting scalar/many attributes and
-   single/many containment references.
+1. **`encodeAttr(value, attr, packagePath, imports)`** — encodes an attribute
+   value as a Go literal: strings quoted+escaped; enums as a typed conversion
+   `pkg.EnumType(intValue)` (the typed setter rejects a bare int); booleans/ints
+   by textual form.
+2. **`getContentPackagePaths(aPackage)`** — implementation package paths of every
+   object in any annotation's contents (added to the `packages` import set).
+3. **`generateContent(eObject, depth, packagePath, imports)`** — recursively emits
+   Go reconstructing a content object into depth-named `o<n>` variables:
+   `factory.Create(GetEClassifier("X").(ecore.EClass))`, then set attributes
+   (single via `ESet`, many via `EGetResolve(...).(EList).Add`), then recurse over
+   `eContents()` and attach each child by its `eContainmentFeature()` (single
+   `ESet`, many list `Add`). Features are resolved reflectively by name
+   (`EClass().GetEStructuralFeatureFromName`), so no cross-package getters.
 4. **annotation initializer** — after the details loop, emits one block per
    content object: `generateContent(0)` then `eAnnotation.GetContents().Add(o0)`.
-5. **`packages` import set** — now includes `getContentPackagePaths()`.
 
 Scope: containment references + scalar/many attributes (incl. enums). Non-
-containment references inside annotation contents are **not** handled (the
-metadata model uses none); add later if needed.
+containment references inside annotation contents are not handled (the metadata
+model uses none).
 
-## ⚠ Verification required (authored without a local generator run)
+## Constraint surfaced
 
-These edits were authored without building/running soft.gen (no Maven/JDK 25/
-Docker in the authoring environment). They MUST be regenerated + compiled before
-trusting. Verify in CI / a dev box with the toolchain:
+The annotation **source string must end in a segment that is a valid Go
+identifier** (it names `initialize<Id>Annotations`). A versioned tail like
+`.../meta/1.0` yields `initialize1.0Annotations` (invalid). Use e.g.
+`http://www.masagroup.net/sword/meta`.
 
-1. Build the Go generator image from this branch (`Dockerfile-go`) or
-   `mvn -f soft.acceleo/pom.xml ... install && mvn -f soft.generators/pom.xml ... verify`.
-2. Regenerate a metamodel that has an annotation with contents (e.g. a small
-   `meta.ecore` + a target `.ecore` whose EClass carries a
-   `…/sword/meta/1.0` annotation with a contents instance).
-3. `go build ./...` the generated bindings (catches Acceleo-emit bugs as Go
-   compile errors).
-4. Assert at runtime that `GetPackage()` returns the EClass annotation with
-   non-empty `GetContents()` whose object reads back correctly.
+## Building & running the generator (no Docker)
 
-Likely fix points to check first: the `getImportedIdentifier(... + '.GetFactory()')`
-form, the `oclAsType(Collection(EObject))` iteration, the `EList` cast import, and
-enum value encoding in `encodeAttr`.
+```
+JAVA_HOME = <jdk-25>
+mvn -f soft.acceleo/pom.xml    -s settings.xml -Pdocker clean install
+mvn -f soft.generators/pom.xml -s settings.xml -Pdocker clean verify
+# run from the output dir so the jar's manifest Class-Path resolves (a `-cp *`
+# wildcard hits Eclipse signed-jar signer conflicts):
+cd out/soft.generator.go
+java -jar soft.generator.go-<v>.jar -o <out> -m <model.ecore> -t generateModel -P <generator.properties>
+```
 
-## Pin (after verification)
+## Pin
 
 To make `my_sw.api.ng.go` use this fork: build the local image tagged
-`masagroup/soft.generator.go` from this branch (its `generate.sh` already invokes
-that tag), then `make generate` + commit the regenerated bindings.
+`masagroup/soft.generator.go` from this branch (its `generate.sh` calls that tag),
+or invoke the jar directly as above; then regenerate + commit the bindings. Until
+META annotations are authored into the `.ecore`, regeneration is byte-equivalent —
+the new capability is latent.
 
 ## TS parity
 
-The TypeScript generator (`soft.generator.ts/.../generatePackageImplementation.mtl`)
-has the identical details-only limitation; mirror this change there if TS
-bindings also need annotation contents. Not done here (the Go lib is the consumer).
+The TypeScript generator has the same details-only limitation; mirror this change
+there if TS bindings also need annotation contents (not done — Go is the consumer).
