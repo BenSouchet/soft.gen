@@ -13,6 +13,7 @@
 [module generateStructuralFeature('http://www.eclipse.org/emf/2002/Ecore')/]
 
 [import soft::generator::common::generateCommon/]
+[import soft::generator::common::generateElement/]
 [import soft::generator::common::generateStructuralFeature/]
 [import soft::generator::go::generateCommon/]
 [import soft::generator::go::generatePath/]
@@ -25,6 +26,62 @@
 [query public getInitializersInterface( aClass : EClass ) : String = aClass.getInterfaceName().toLowerFirst() + 'Initializers'/]
 
 [query public getBasicsInterface( aClass : EClass ) : String = aClass.getInterfaceName().toLowerFirst() + 'Basics'/]
+
+[**
+ * A list or map feature whose getter materializes its backing list on the first
+ * read - the 'if field == nil { field = New... }' shape below. That check-then-set
+ * is a data race as soon as two goroutines read the same object for the first
+ * time : both observe nil, both allocate, and one of the two lists is silently
+ * dropped. It is therefore serialized on a mutex carried by the object.
+ *
+ * Only the features matching this query need the mutex : the 'lazy' variants
+ * initialize through their own initialization method, and volatile, container
+ * and reflectively delegated features do not own a field at all.
+ *
+ * Why ONE mutex on the object rather than a sync.Once per feature :
+ *  - these fields are not written by their getter only. Setters, unsetters and
+ *    hand written extensions assign them directly, so a Once guarding only the
+ *    getter would still be untouched after such a write and would run the
+ *    constructor on the next Get, overwriting the value that was just stored :
+ *    silent data loss traded for a data race.
+ *  - one mutex per object costs 8 bytes whatever the number of lazy features of
+ *    the class, where a Once per feature costs 16 bytes each - and these models
+ *    are instantiated by the million.
+ * The nil check is taken INSIDE the lock on purpose : reading the field
+ * unsynchronized while another goroutine assigns it is itself a race, so the
+ * classic double checked variant is not an option here.
+*/]
+[query public hasGuardedLazyInitialization( aStructuralFeature : EStructuralFeature ) : Boolean =
+	aStructuralFeature.isListType()
+	and not aStructuralFeature.isReflectiveDelegation()
+	and not aStructuralFeature.isContainer()
+	and not aStructuralFeature.isVolatile()
+	and not aStructuralFeature.isLazy()
+/]
+
+[query public hasGuardedLazyInitialization( aClass : EClass ) : Boolean =
+	aClass.getImplementedFeatures()->exists( hasGuardedLazyInitialization() )
+/]
+
+[query public getGuardedLazyInitializationMutexName( aClass : EClass ) : String = 'lazyInitMutex'/]
+
+[**
+ * Qualified as 'package path'.'identifier', like every other imported type, so
+ * that the standard import mechanism resolves and declares it exactly once.
+*/]
+[query public getGuardedLazyInitializationMutexPackagePath( aClass : EClass ) : String = 'sync/sync'/]
+
+[query private getGuardedLazyInitializationMutexType( aClass : EClass ) : String =
+	aClass.getGuardedLazyInitializationMutexPackagePath() + '.Mutex'
+/]
+
+[template public generateGuardedLazyInitializationMutexDeclaration(aClass : EClass, packagePath : String, imports : OclAny)]
+// [aClass.getGuardedLazyInitializationMutexName()/] guards the lazy initialization of the list
+// and map features above: their getters build the backing list on first read, which would
+// otherwise be an unsynchronized check-then-set. One mutex per object, not a sync.Once per
+// feature, which would re-run after a feature is set and read back.
+[aClass.getGuardedLazyInitializationMutexName()/] [getImportedIdentifier(aClass.getGuardedLazyInitializationMutexType(),packagePath,imports)/]
+[/template]
 
 [query private getPackageInstance(aClassifier : EClassifier, packagePath : String , imports : OclAny ) : String = 
 	getImportedIdentifier( aClassifier.ePackage.getImplementationPackagePath() + '.GetPackage()', packagePath, imports )
@@ -327,6 +384,7 @@ func [testMethodName/](t *testing.T) {
 	aPackage : EPackage =  aClass.ePackage;
 	varName : String = aStructuralFeature.getVariableName();
 	receiverName : String = aClass.getReceiverName();
+	lazyMutexName : String = aClass.getGuardedLazyInitializationMutexName();
 }]
 // [aStructuralFeature.getGetterName()/] get the value of [aStructuralFeature.getVariableName()/]
 [aClass.generateFunctionImplementationReceiver()/] [aStructuralFeature.getGetterName()/]() [aStructuralFeature.generateType(packagePath,imports)/] {
@@ -397,13 +455,17 @@ func [testMethodName/](t *testing.T) {
         [/if]
         [/let]
 	[elseif aStructuralFeature.isMapType()]
+	[receiverName/].[lazyMutexName/].Lock()
 	if [receiverName/].[varName/] == nil {
 		[receiverName/].[varName/] = [aStructuralFeature.getMapConstructor(aClass,packagePath,imports)/];
 	}
+	[receiverName/].[lazyMutexName/].Unlock()
 	[elseif aStructuralFeature.isListType()]
+	[receiverName/].[lazyMutexName/].Lock()
 	if [receiverName/].[varName/] == nil {
 		[receiverName/].[varName/] = [aStructuralFeature.getListConstructor(aClass,packagePath,imports)/]
 	}
+	[receiverName/].[lazyMutexName/].Unlock()
 	[/if]
     return [receiverName/].[varName/]
 [elseif hasKey('getterBody')]
