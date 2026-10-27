@@ -27,7 +27,18 @@ func init() {
 			"attributes/holder_impl_test.go": v1GoIntTestValue,
 			"attributes/holder_mock_test.go": v1GoIntTestValue,
 		}})
+	// With floatFormat=xsd, the float data types are written by ecore.FormatFloatXSD.
+	register(fixture{Name: "attributes-floatxsd", Model: "attributes.ecore",
+		Props: map[string]string{"floatFormat": "xsd"},
+		V1Differences: map[string]string{
+			"attributes/attributesfactory_impl.go": v1FloatFormat,
+			"attributes/holder_impl_test.go":       v1GoIntTestValue,
+			"attributes/holder_mock_test.go":       v1GoIntTestValue,
+		}})
 }
+
+// v1FloatFormat is why the factory differs from v1 with the property floatFormat=xsd.
+const v1FloatFormat = "v1 writes floats with strconv.FormatFloat: Go's +Inf, -Inf, and 309 digits for 1.7976931348623157e+308"
 
 // v1IsSetFlags is why the implementation differs from v1 with the property isSetFlags.
 const v1IsSetFlags = "v1 has no isSetFlags: an attribute set to its default reads as unset"
