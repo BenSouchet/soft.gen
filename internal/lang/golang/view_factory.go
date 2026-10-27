@@ -171,6 +171,8 @@ type conversionView struct {
 	Parse string
 	// Format is the standard function the conversion uses (strconv.FormatBool...).
 	Format string
+	// FloatXSD is set when a float is written by ecore.FormatFloatXSD (property floatFormat=xsd).
+	FloatXSD bool
 }
 
 // factoryInterfaceFile is the factory interface: <interface dir>/<package>factory.go,
@@ -420,6 +422,9 @@ func (g *gen) conversionView(dt ecore.EDataType, scope *fileScope, view factoryI
 		c.Parse, c.Format = strconvFunc("ParseInt"), strconvFunc("FormatInt")
 	case "float64", "float32":
 		c.Parse, c.Format = strconvFunc("ParseFloat"), strconvFunc("FormatFloat")
+		if g.PackagePropertyIs("floatFormat", "xsd") {
+			c.FloatXSD, c.Format = true, scope.qualify("github.com/masagroup/soft.go/ecore/ecore.FormatFloatXSD")
+		}
 	case "reflect":
 		c.Parse = scope.qualify("reflect/reflect.Ptr")
 	case "time":
