@@ -133,7 +133,7 @@ func (g *gen) factoryTestClass(c ecore.EClass, names factoryTestNames, scope *fi
 		var mockList string
 		if many {
 			mockList = "NewMockEList"
-			if g.m.Feature(opposite).IsMap {
+			if g.feature(opposite).IsMap {
 				mockList = "NewMockEMap"
 			}
 			mockList = scope.qualify(g.qualifiedMockIdentifier(g.m.Ecore(), mockList))

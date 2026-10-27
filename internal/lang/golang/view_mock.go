@@ -166,7 +166,7 @@ func (g *gen) mockMethod(c ecore.EClass, method string, scope *fileScope) mockMe
 // mockAccessors lists the mocked accessors of a feature (v1
 // generateMock(EStructuralFeature)): getter, setter, unsetter, issetter.
 func (g *gen) mockAccessors(c ecore.EClass, f ecore.EStructuralFeature, scope *fileScope) []*mockAccessorView {
-	info := g.m.Feature(f)
+	info := g.feature(f)
 	t := scope.qualify(g.typeOf(f))
 	accessor := func(kind, method string) *mockAccessorView {
 		return &mockAccessorView{mockMethodView: g.mockMethod(c, method, scope), Kind: kind, Var: g.variableName(f), Type: t}
@@ -340,7 +340,7 @@ func (g *gen) mockRun(args string, scope *fileScope) string {
 // mockAccessorTests lists the tests of the mocked accessors of a feature (v1
 // generateGetMockTest, generateSetMockTest, generateUnSetMockTest).
 func (g *gen) mockAccessorTests(c ecore.EClass, f ecore.EStructuralFeature, scope *fileScope) []*mockTestCaseView {
-	info := g.m.Feature(f)
+	info := g.feature(f)
 	t := scope.qualify(g.typeOf(f))
 	var tests []*mockTestCaseView
 	if info.Get {

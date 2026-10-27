@@ -202,7 +202,7 @@ func (g *gen) operationTestView(op ecore.EOperation, scope *fileScope) operation
 
 // featureTestView builds the view of a feature in the tests of the class.
 func (g *gen) featureTestView(c ecore.EClass, f ecore.EStructuralFeature, names *implTestNames, scope *fileScope) *featureTestView {
-	info := g.m.Feature(f)
+	info := g.feature(f)
 	v := &featureTestView{
 		implTestNames: names,
 		Name:          naming.UpperFirst(f.GetName()),
@@ -587,7 +587,7 @@ func (g *gen) reflectiveTests(c ecore.EClass, features map[ecore.EStructuralFeat
 		test := &reflectiveTestView{implTestNames: names, Kind: kind}
 		cases := 0
 		for _, f := range sortedByFeatureName(list) {
-			if skipFeatureMaps && isFeatureMapTest(g.m.Feature(f)) {
+			if skipFeatureMaps && isFeatureMapTest(g.feature(f)) {
 				continue
 			}
 			cases++

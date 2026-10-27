@@ -57,6 +57,7 @@ func (*Language) Properties() []props.Decl {
 		{Name: "packageInstance", Doc: "interfaces: the package instance (GetPackage) is generated with the interfaces and shared by the implementations", Scope: pkg},
 		{Name: "checkImplementation", Default: "true", Doc: "false: the setters of a shared package do not check that the objects share the implementation", Scope: pkg},
 		{Name: "annotationContents", Default: "false", Doc: "true: the objects of the contents of the annotations are created with them, by the factories of their packages; left out by default, as in EMF", Scope: pkg},
+		{Name: "isSetFlags", Default: "false", Doc: "true: a single-valued attribute records in a flag whether it was set, as an unsettable one does, so a value set to its default stays set; the package metadata is unchanged", Scope: pkg},
 		{Name: "exported", Default: "false", Doc: "true: the implementation names are exported", Scope: pkg},
 		{Name: "goVersion", Default: "1.19", Doc: "the Go version of the generated code: any from 1.18, else interface{}", Scope: pkg},
 		{Name: "rootExtendsInterface", Default: "ecore.EObject", Doc: "the interface the root interfaces embed", Scope: pkg},

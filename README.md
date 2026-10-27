@@ -181,6 +181,7 @@ annotation of the root package):
 | `packageInstance` | | `interfaces`: the package instance (`GetPackage`) is generated with the interfaces and shared by the implementations |
 | `checkImplementation` | `true` | `false`: the setters of a shared package do not check that the objects share the implementation |
 | `annotationContents` | `false` | `true`: the objects of the contents of the annotations are created with them, by the factories of their packages (`<package>.GetFactory().Create<Class>()`, then the setters); left out by default, as in EMF. The references other than containments, the maps and the objects of the package itself are not supported: the generation fails on them |
+| `isSetFlags` | `false` | `true` (Go): every single-valued changeable attribute keeps the ESet flag of an unsettable one (`<field>ESet`): its setter raises it, `EIsSetFromID` returns it, `EUnsetFromID` sets the default and lowers it, so an attribute set to its default reads as set and is saved. Unlike `unsettable`, no unsetter nor issetter is generated, and the package metadata is unchanged |
 | `exported` | `false` | `true`: the implementation names are exported |
 | `goVersion` | `1.19` | the Go version of the generated code: `any` from 1.18, else `interface{}` |
 | `rootExtendsInterface` | `ecore.EObject` | the interface the root interfaces embed |

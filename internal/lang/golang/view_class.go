@@ -180,7 +180,7 @@ func (g *gen) implementationFile(c ecore.EClass) []engine.File {
 		fv := g.featureView(c, f, scope)
 		views[f] = fv
 		view.Features = append(view.Features, fv)
-		g.addFeature(view, fv, g.m.Feature(f), reflective)
+		g.addFeature(view, fv, g.feature(f), reflective)
 	}
 	for _, op := range g.sortedByOperationName(info.ImplementedOperations) {
 		if g.m.Operation(op).IsDefault {

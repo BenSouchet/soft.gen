@@ -75,7 +75,7 @@ type initMethodView struct {
 
 // featureView builds the view of a feature implemented by the class.
 func (g *gen) featureView(c ecore.EClass, f ecore.EStructuralFeature, scope *fileScope) *featureView {
-	info := g.m.Feature(f)
+	info := g.feature(f)
 	e := g.ecoreNames(scope)
 	v := &featureView{
 		ecoreNames:   e,
@@ -352,7 +352,7 @@ func (g *gen) isSetterStrategy(v *featureView, info *model.FeatureInfo, reflecti
 // attribute (nil for a feature map), an object map for a map reference, an
 // object list for a reference with the four flag tuples of v1.
 func (g *gen) listConstructor(c ecore.EClass, f ecore.EStructuralFeature, scope *fileScope) string {
-	info := g.m.Feature(f)
+	info := g.feature(f)
 	ecore := func(name string) string { return scope.qualify(g.qualifiedInterfaceIdentifier(g.m.Ecore(), name)) }
 	receiver := receiverName(c) + ".AsEObjectInternal()"
 	id := g.featureID(c, f, scope)
@@ -449,7 +449,7 @@ func (g *gen) initMethodView(v *featureView, info *model.FeatureInfo) initMethod
 // setter when changeable and single, the unsetter when changeable and
 // unsettable, the issetter when unsettable.
 func (g *gen) featureDeclarations(f ecore.EStructuralFeature, scope *fileScope) []string {
-	info := g.m.Feature(f)
+	info := g.feature(f)
 	t := scope.qualify(g.typeOf(f))
 	decls := []string{g.getterName(f) + "() " + t}
 	if info.Set {

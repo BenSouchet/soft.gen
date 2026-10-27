@@ -18,4 +18,16 @@ func init() {
 			"attributes/holder_impl_test.go": v1GoIntTestValue,
 			"attributes/holder_mock_test.go": v1GoIntTestValue,
 		}})
+	// With isSetFlags, every single-valued changeable attribute keeps the ESet flag of the unsettable
+	// one: the setter raises it, EIsSet reads it, EUnset sets the default and lowers it.
+	register(fixture{Name: "attributes-issetflags", Model: "attributes.ecore",
+		Props: map[string]string{"isSetFlags": "true"},
+		V1Differences: map[string]string{
+			"attributes/holder_impl.go":      v1IsSetFlags,
+			"attributes/holder_impl_test.go": v1GoIntTestValue,
+			"attributes/holder_mock_test.go": v1GoIntTestValue,
+		}})
 }
+
+// v1IsSetFlags is why the implementation differs from v1 with the property isSetFlags.
+const v1IsSetFlags = "v1 has no isSetFlags: an attribute set to its default reads as unset"

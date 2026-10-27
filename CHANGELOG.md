@@ -77,6 +77,13 @@ templates alike:
   `new BasicEDataTypeList(this, id, unique, unsettable)` (soft.ts after v1.8.0),
   so the code of the other attributes is unchanged.
 
+With the new Go property `isSetFlags=true`, every single-valued changeable
+attribute keeps the ESet flag too, without being unsettable in the model: its
+setter raises the flag, `EIsSetFromID` returns it, and `EUnsetFromID` sets
+the default then lowers it; no unsetter nor issetter is generated. An
+attribute set to its default then reads as set, as in a document that wrote
+it.
+
 Fixed with it:
 
 - The basic unsetter is declared in the basics interface with the signature

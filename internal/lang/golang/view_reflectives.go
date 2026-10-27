@@ -71,7 +71,7 @@ func (g *gen) reflectiveMethods(c ecore.EClass, views map[ecore.EStructuralFeatu
 		}
 		m := g.reflectiveMethod(c, kind, scope)
 		for _, f := range sortedByFeatureName(features) {
-			m.Cases = append(m.Cases, strategy(reflectiveCaseView{featureView: views[f]}, g.m.Feature(f)))
+			m.Cases = append(m.Cases, strategy(reflectiveCaseView{featureView: views[f]}, g.feature(f)))
 		}
 		methods = append(methods, m)
 	}

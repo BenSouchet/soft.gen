@@ -25,4 +25,7 @@ func ({{ .Receiver }} *{{ .Impl }}) EUnsetFromID(featureID int) {
 {{/* Any other feature: set to nil or to its default. */}}
 {{ define "reflectives/eunset.set" -}}
 		{{ .Receiver }}.{{ .AsInterface }}().{{ .Setter }}({{ .Value }})
+{{- if .ESetVar }}
+		{{ .Receiver }}.{{ .ESetVar }} = false
+{{- end }}
 {{- end }}
