@@ -82,10 +82,15 @@ attribute keeps the ESet flag too, without being unsettable in the model: its
 setter raises the flag, `EIsSetFromID` returns it, and `EUnsetFromID` sets
 the default then lowers it; no unsetter nor issetter is generated. An
 attribute set to its default then reads as set, as in a document that wrote
-it.
+it. An attribute of a pointer or slice type (a date, bytes) set to nil reads
+as unset: nil is no value, there is nothing to write.
 
 Fixed with it:
 
+- `ESetFromID` sets nil to an attribute of a type nil is a value of (Go: a
+  pointer, a slice, a map, a channel or a function, such as `*time.Time` or
+  `[]byte`), and still panics on a value of another type; it asserted nil to
+  the type and panicked.
 - The basic unsetter is declared in the basics interface with the signature
   of its definition (Go; the code did not compile).
 - The unsetter of a list clears it only when built: lists are built on first

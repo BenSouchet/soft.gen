@@ -2,6 +2,7 @@ package golang
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/masagroup/soft.go/ecore"
 
@@ -22,11 +23,16 @@ type featureView struct {
 	// Type is the Go type of the feature; Cast the type assertion from the any
 	// type (".(Type)", "" when Type is the any type).
 	Type, Cast string
+	// Nillable tells that a value of Type may be nil: a pointer, a slice, a map,
+	// a channel or a function.
+	Nillable bool
 	// The accessor names.
 	Getter, Setter, Unsetter, IsSetter, BasicGetter, BasicSetter, BasicUnsetter, InitMethod string
 	// ESetVar is the flag field telling whether an unsettable single field is
-	// set (EMF xxxESet), "" when the feature has none.
-	ESetVar string
+	// set (EMF xxxESet), "" when the feature has none; ESetValue the value its
+	// setter gives it: true, or NewVar != nil for an attribute of a nillable
+	// type that only isSetFlags flags, nil being no value to keep.
+	ESetVar, ESetValue string
 	// NewVar and OldVar are the local variables of the setters.
 	NewVar, OldVar string
 	// ID is the feature id constant in the class; ReverseID the id of the
@@ -97,14 +103,18 @@ func (g *gen) featureView(c ecore.EClass, f ecore.EStructuralFeature, scope *fil
 		UnsetterBody: g.m.Annotation(f).Value("unsetterBody"),
 		IsSetterBody: g.m.Annotation(f).Value("isSetBody"),
 	}
-	if info.HasESet && !g.IsReflectiveDelegation() {
-		v.ESetVar = v.Var + "ESet"
-	}
 	v.BasicGetter = "basic" + naming.UpperFirst(v.Getter)
 	v.BasicSetter = "basic" + naming.UpperFirst(v.Setter)
 	v.BasicUnsetter = "basic" + naming.UpperFirst(v.Unsetter)
 	v.NewVar = "new" + naming.UpperFirst(v.Var)
 	v.OldVar = "old" + naming.UpperFirst(v.Var)
+	v.Nillable = isNillableType(v.Type)
+	if info.HasESet && !g.IsReflectiveDelegation() {
+		v.ESetVar, v.ESetValue = v.Var+"ESet", "true"
+		if info.Attribute != nil && !info.IsUnsettable && v.Nillable {
+			v.ESetValue = v.NewVar + " != nil"
+		}
+	}
 	// v1 tests isAnyType(eType.getType()): the type of the classifier, even
 	// for a list; the generated type is tested instead, so that a list of the
 	// any type is still asserted to EList (v1 did not compile there).
@@ -462,4 +472,15 @@ func (g *gen) featureDeclarations(f ecore.EStructuralFeature, scope *fileScope) 
 		decls = append(decls, g.isSetterName(f)+"() bool")
 	}
 	return decls
+}
+
+// isNillableType tells whether nil is a value of the Go type t: a pointer, a slice, a map, a
+// channel or a function.
+func isNillableType(t string) bool {
+	for _, prefix := range []string{"*", "[]", "map[", "chan ", "<-chan ", "func("} {
+		if strings.HasPrefix(t, prefix) {
+			return true
+		}
+	}
+	return false
 }

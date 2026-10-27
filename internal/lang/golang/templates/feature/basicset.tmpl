@@ -15,7 +15,7 @@ func ({{ .Receiver }} *{{ .Impl }}) {{ .BasicSetter }}({{ .NewVar }} {{ .Type }}
 	{{ .OldVar }} := {{ .Receiver }}.{{ .Var }}
 	{{ .Receiver }}.{{ .Var }} = {{ .NewVar }}
 {{- if .ESetVar }}
-	{{ .Receiver }}.{{ .ESetVar }} = true
+	{{ .Receiver }}.{{ .ESetVar }} = {{ .ESetValue }}
 {{- end }}
 	notifications := msgs
 	if {{ .Receiver }}.ENotificationRequired() {

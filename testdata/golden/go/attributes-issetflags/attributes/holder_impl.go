@@ -149,7 +149,7 @@ func (h *holderImpl) GetData() []byte {
 func (h *holderImpl) SetData(newData []byte) {
 	oldData := h.data
 	h.data = newData
-	h.dataESet = true
+	h.dataESet = newData != nil
 	if h.ENotificationRequired() {
 		h.ENotify(ecore.NewNotificationByFeatureID(h.AsEObject(), ecore.SET, HOLDER__DATA, oldData, newData, ecore.NO_INDEX))
 	}
@@ -365,7 +365,7 @@ func (h *holderImpl) GetWhen() *time.Time {
 func (h *holderImpl) SetWhen(newWhen *time.Time) {
 	oldWhen := h.when
 	h.when = newWhen
-	h.whenESet = true
+	h.whenESet = newWhen != nil
 	if h.ENotificationRequired() {
 		h.ENotify(ecore.NewNotificationByFeatureID(h.AsEObject(), ecore.SET, HOLDER__WHEN, oldWhen, newWhen, ecore.NO_INDEX))
 	}
@@ -421,7 +421,11 @@ func (h *holderImpl) ESetFromID(featureID int, newValue any) {
 	case HOLDER__COUNT:
 		h.asHolder().SetCount(newValue.(int))
 	case HOLDER__DATA:
-		h.asHolder().SetData(newValue.([]byte))
+		if newValue == nil {
+			h.asHolder().SetData(nil)
+		} else {
+			h.asHolder().SetData(newValue.([]byte))
+		}
 	case HOLDER__ENABLED:
 		h.asHolder().SetEnabled(newValue.(bool))
 	case HOLDER__FUNC:
@@ -457,7 +461,11 @@ func (h *holderImpl) ESetFromID(featureID int, newValue any) {
 		list.Clear()
 		list.AddAll(newValue.(ecore.EList))
 	case HOLDER__WHEN:
-		h.asHolder().SetWhen(newValue.(*time.Time))
+		if newValue == nil {
+			h.asHolder().SetWhen(nil)
+		} else {
+			h.asHolder().SetWhen(newValue.(*time.Time))
+		}
 	default:
 		h.EObjectImpl.ESetFromID(featureID, newValue)
 	}

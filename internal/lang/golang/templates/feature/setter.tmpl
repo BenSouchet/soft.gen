@@ -59,7 +59,7 @@ func ({{ .Receiver }} *{{ .Impl }}) {{ .Setter }}({{ .NewVar }} {{ .Type }}) {
 	{{ .OldVar }} := {{ .Receiver }}.{{ .Var }}
 	{{ .Receiver }}.{{ .Var }} = {{ .NewVar }}
 {{- if .ESetVar }}
-	{{ .Receiver }}.{{ .ESetVar }} = true
+	{{ .Receiver }}.{{ .ESetVar }} = {{ .ESetValue }}
 {{- end }}
 	if {{ .Receiver }}.ENotificationRequired() {
 		{{ .Receiver }}.ENotify({{ .NewNotificationByFeatureID }}({{ .Receiver }}.AsEObject(), {{ .SET }}, {{ .ID }}, {{ .OldVar }}, {{ .NewVar }}, {{ .NO_INDEX }}))
