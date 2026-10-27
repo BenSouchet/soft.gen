@@ -75,14 +75,22 @@ func ({{ .Receiver }} *{{ .Impl }}) convert{{ .Name }}ToString(eDataType {{ .EDa
 {{ define "factory/converttostring.float64" -}}
 func ({{ .Receiver }} *{{ .Impl }}) convert{{ .Name }}ToString(eDataType {{ .EDataType }}, instanceValue {{ .Any }}) string {
 	v, _ := instanceValue.(float64)
+{{- if .FloatXSD }}
+	return {{ .Format }}(v, 64)
+{{- else }}
 	return {{ .Format }}(v, 'f', -1, 64)
+{{- end }}
 }
 {{- end }}
 
 {{ define "factory/converttostring.float32" -}}
 func ({{ .Receiver }} *{{ .Impl }}) convert{{ .Name }}ToString(eDataType {{ .EDataType }}, instanceValue {{ .Any }}) string {
 	v, _ := instanceValue.(float32)
+{{- if .FloatXSD }}
+	return {{ .Format }}(float64(v), 32)
+{{- else }}
 	return {{ .Format }}(float64(v), 'f', -1, 32)
+{{- end }}
 }
 {{- end }}
 
