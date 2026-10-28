@@ -14,31 +14,33 @@ package attributes
 import (
 	"github.com/masagroup/soft.go/ecore"
 	"reflect"
+	"sync"
 	"time"
 )
 
 // holderImpl is the implementation of the model object 'Holder'
 type holderImpl struct {
 	ecore.EObjectImpl
-	anything    any
-	count       int
-	countESet   bool
-	data        []byte
-	func_       int
-	isEnabled   bool
-	kind        reflect.Type
-	label       string
-	medium      int32
-	mixed       ecore.EList
-	octet       byte
-	range_      int64
-	ratio       float32
-	small       int8
-	tags        ecore.EList
-	temperature float64
-	type_       string
-	values      ecore.EList
-	when        *time.Time
+	anything      any
+	count         int
+	countESet     bool
+	data          []byte
+	func_         int
+	isEnabled     bool
+	kind          reflect.Type
+	label         string
+	medium        int32
+	mixed         ecore.EList
+	octet         byte
+	range_        int64
+	ratio         float32
+	small         int8
+	tags          ecore.EList
+	temperature   float64
+	type_         string
+	values        ecore.EList
+	when          *time.Time
+	lazyInitMutex sync.Mutex
 }
 
 // newHolderImpl is the constructor of a holderImpl
@@ -211,9 +213,11 @@ func (h *holderImpl) SetMedium(newMedium int32) {
 
 // GetMixed get the value of mixed
 func (h *holderImpl) GetMixed() ecore.EList {
+	h.lazyInitMutex.Lock()
 	if h.mixed == nil {
 		h.mixed = nil
 	}
+	h.lazyInitMutex.Unlock()
 	return h.mixed
 }
 
@@ -275,9 +279,11 @@ func (h *holderImpl) SetSmall(newSmall int8) {
 
 // GetTags get the value of tags
 func (h *holderImpl) GetTags() ecore.EList {
+	h.lazyInitMutex.Lock()
 	if h.tags == nil {
 		h.tags = ecore.NewBasicEDataTypeList(h.AsEObjectInternal(), HOLDER__TAGS, true, true)
 	}
+	h.lazyInitMutex.Unlock()
 	return h.tags
 }
 
@@ -290,7 +296,11 @@ func (h *holderImpl) UnsetTags() {
 
 // IsSetTags get if the value of tags is set
 func (h *holderImpl) IsSetTags() bool {
-	return h.tags != nil && h.tags.Size() != 0
+	return func() bool {
+		h.lazyInitMutex.Lock()
+		defer h.lazyInitMutex.Unlock()
+		return h.tags != nil && h.tags.Size() != 0
+	}()
 }
 
 // GetTemperature get the value of temperature
@@ -323,9 +333,11 @@ func (h *holderImpl) SetType(newType_ string) {
 
 // GetValues get the value of values
 func (h *holderImpl) GetValues() ecore.EList {
+	h.lazyInitMutex.Lock()
 	if h.values == nil {
 		h.values = ecore.NewBasicEDataTypeList(h.AsEObjectInternal(), HOLDER__VALUES, true, false)
 	}
+	h.lazyInitMutex.Unlock()
 	return h.values
 }
 
@@ -505,7 +517,11 @@ func (h *holderImpl) EIsSetFromID(featureID int) bool {
 	case HOLDER__MEDIUM:
 		return h.medium != 0
 	case HOLDER__MIXED:
-		return h.mixed != nil && h.mixed.Size() != 0
+		return func() bool {
+			h.lazyInitMutex.Lock()
+			defer h.lazyInitMutex.Unlock()
+			return h.mixed != nil && h.mixed.Size() != 0
+		}()
 	case HOLDER__OCTET:
 		return h.octet != 0
 	case HOLDER__RANGE:
@@ -515,13 +531,21 @@ func (h *holderImpl) EIsSetFromID(featureID int) bool {
 	case HOLDER__SMALL:
 		return h.small != 0
 	case HOLDER__TAGS:
-		return h.tags != nil && h.tags.Size() != 0
+		return func() bool {
+			h.lazyInitMutex.Lock()
+			defer h.lazyInitMutex.Unlock()
+			return h.tags != nil && h.tags.Size() != 0
+		}()
 	case HOLDER__TEMPERATURE:
 		return h.temperature != -273.15
 	case HOLDER__TYPE:
 		return h.type_ != ""
 	case HOLDER__VALUES:
-		return h.values != nil && h.values.Size() != 0
+		return func() bool {
+			h.lazyInitMutex.Lock()
+			defer h.lazyInitMutex.Unlock()
+			return h.values != nil && h.values.Size() != 0
+		}()
 	case HOLDER__WHEN:
 		return h.when != nil
 	default:

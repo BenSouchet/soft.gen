@@ -13,14 +13,16 @@ package maps
 
 import (
 	"github.com/masagroup/soft.go/ecore"
+	"sync"
 )
 
 // holderImpl is the implementation of the model object 'Holder'
 type holderImpl struct {
 	ecore.EObjectImpl
-	owned   ecore.EMap
-	pseudos ecore.EMap
-	values  ecore.EMap
+	owned         ecore.EMap
+	pseudos       ecore.EMap
+	values        ecore.EMap
+	lazyInitMutex sync.Mutex
 }
 
 // newHolderImpl is the constructor of a holderImpl
@@ -50,25 +52,31 @@ func (h *holderImpl) EStaticFeatureCount() int {
 
 // GetOwned get the value of owned
 func (h *holderImpl) GetOwned() ecore.EMap {
+	h.lazyInitMutex.Lock()
 	if h.owned == nil {
 		h.owned = ecore.NewBasicEObjectMap(GetPackage().GetOwnedEntry(), h.AsEObjectInternal(), HOLDER__OWNED, OWNED_ENTRY__HOLDER, false)
 	}
+	h.lazyInitMutex.Unlock()
 	return h.owned
 }
 
 // GetPseudos get the value of pseudos
 func (h *holderImpl) GetPseudos() ecore.EMap {
+	h.lazyInitMutex.Lock()
 	if h.pseudos == nil {
 		h.pseudos = ecore.NewBasicEObjectMap(GetPackage().GetPseudoEntry(), h.AsEObjectInternal(), HOLDER__PSEUDOS, -1, false)
 	}
+	h.lazyInitMutex.Unlock()
 	return h.pseudos
 }
 
 // GetValues get the value of values
 func (h *holderImpl) GetValues() ecore.EMap {
+	h.lazyInitMutex.Lock()
 	if h.values == nil {
 		h.values = ecore.NewBasicEObjectMap(GetPackage().GetNamesToAnyEntry(), h.AsEObjectInternal(), HOLDER__VALUES, -1, false)
 	}
+	h.lazyInitMutex.Unlock()
 	return h.values
 }
 
@@ -120,11 +128,23 @@ func (h *holderImpl) EUnsetFromID(featureID int) {
 func (h *holderImpl) EIsSetFromID(featureID int) bool {
 	switch featureID {
 	case HOLDER__OWNED:
-		return h.owned != nil && h.owned.Size() != 0
+		return func() bool {
+			h.lazyInitMutex.Lock()
+			defer h.lazyInitMutex.Unlock()
+			return h.owned != nil && h.owned.Size() != 0
+		}()
 	case HOLDER__PSEUDOS:
-		return h.pseudos != nil && h.pseudos.Size() != 0
+		return func() bool {
+			h.lazyInitMutex.Lock()
+			defer h.lazyInitMutex.Unlock()
+			return h.pseudos != nil && h.pseudos.Size() != 0
+		}()
 	case HOLDER__VALUES:
-		return h.values != nil && h.values.Size() != 0
+		return func() bool {
+			h.lazyInitMutex.Lock()
+			defer h.lazyInitMutex.Unlock()
+			return h.values != nil && h.values.Size() != 0
+		}()
 	default:
 		return h.EObjectImpl.EIsSetFromID(featureID)
 	}

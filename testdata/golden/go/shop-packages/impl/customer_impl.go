@@ -14,18 +14,20 @@ package impl
 import (
 	"github.com/masagroup/soft.go/ecore"
 	"github.com/x/p/shop"
+	"sync"
 )
 
 // customerImpl is the implementation of the model object 'Customer'
 type customerImpl struct {
 	ecore.EObjectImpl
-	advisor      shop.Customer
-	favorite     shop.Product
-	favoriteESet bool
-	name         string
-	orders       ecore.EList
-	referrals    ecore.EList
-	referrer     shop.Customer
+	advisor       shop.Customer
+	favorite      shop.Product
+	favoriteESet  bool
+	name          string
+	orders        ecore.EList
+	referrals     ecore.EList
+	referrer      shop.Customer
+	lazyInitMutex sync.Mutex
 }
 
 type customerBasics interface {
@@ -138,17 +140,21 @@ func (c *customerImpl) SetName(newName string) {
 
 // GetOrders get the value of orders
 func (c *customerImpl) GetOrders() ecore.EList {
+	c.lazyInitMutex.Lock()
 	if c.orders == nil {
 		c.orders = ecore.NewBasicEObjectList(c.AsEObjectInternal(), shop.CUSTOMER__ORDERS, shop.ORDER__CUSTOMER, true, true, true, false, false)
 	}
+	c.lazyInitMutex.Unlock()
 	return c.orders
 }
 
 // GetReferrals get the value of referrals
 func (c *customerImpl) GetReferrals() ecore.EList {
+	c.lazyInitMutex.Lock()
 	if c.referrals == nil {
 		c.referrals = ecore.NewBasicEObjectList(c.AsEObjectInternal(), shop.CUSTOMER__REFERRALS, shop.CUSTOMER__REFERRER, false, true, true, true, false)
 	}
+	c.lazyInitMutex.Unlock()
 	return c.referrals
 }
 
@@ -288,9 +294,17 @@ func (c *customerImpl) EIsSetFromID(featureID int) bool {
 	case shop.CUSTOMER__NAME:
 		return c.name != ""
 	case shop.CUSTOMER__ORDERS:
-		return c.orders != nil && c.orders.Size() != 0
+		return func() bool {
+			c.lazyInitMutex.Lock()
+			defer c.lazyInitMutex.Unlock()
+			return c.orders != nil && c.orders.Size() != 0
+		}()
 	case shop.CUSTOMER__REFERRALS:
-		return c.referrals != nil && c.referrals.Size() != 0
+		return func() bool {
+			c.lazyInitMutex.Lock()
+			defer c.lazyInitMutex.Unlock()
+			return c.referrals != nil && c.referrals.Size() != 0
+		}()
 	case shop.CUSTOMER__REFERRER:
 		return c.referrer != nil
 	default:

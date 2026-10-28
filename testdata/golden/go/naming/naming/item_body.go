@@ -13,16 +13,18 @@ package naming
 
 import (
 	"github.com/masagroup/soft.go/ecore"
+	"sync"
 )
 
 // itemStruct is the implementation of the model object 'Item'
 type itemStruct struct {
 	ecore.EObjectImpl
-	count     int
-	countESet bool
-	isActive  bool
-	name      string
-	parts     ecore.EList
+	count         int
+	countESet     bool
+	isActive      bool
+	name          string
+	parts         ecore.EList
+	lazyInitMutex sync.Mutex
 }
 
 // newItemStruct is the constructor of a itemStruct
@@ -123,9 +125,11 @@ func (i *itemStruct) PutName(newName string) {
 
 // ReadParts get the value of parts
 func (i *itemStruct) ReadParts() ecore.EList {
+	i.lazyInitMutex.Lock()
 	if i.parts == nil {
 		i.parts = ecore.NewBasicEObjectList(i.AsEObjectInternal(), ITEM__PARTS, PART__OWNER, true, true, true, false, false)
 	}
+	i.lazyInitMutex.Unlock()
 	return i.parts
 }
 
@@ -185,7 +189,11 @@ func (i *itemStruct) EIsSetFromID(featureID int) bool {
 	case ITEM__NAME:
 		return i.name != ""
 	case ITEM__PARTS:
-		return i.parts != nil && i.parts.Size() != 0
+		return func() bool {
+			i.lazyInitMutex.Lock()
+			defer i.lazyInitMutex.Unlock()
+			return i.parts != nil && i.parts.Size() != 0
+		}()
 	default:
 		return i.EObjectImpl.EIsSetFromID(featureID)
 	}

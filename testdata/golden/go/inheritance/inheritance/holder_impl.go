@@ -13,16 +13,18 @@ package inheritance
 
 import (
 	"github.com/masagroup/soft.go/ecore"
+	"sync"
 )
 
 // holderImpl is the implementation of the model object 'Holder'
 type holderImpl struct {
 	ecore.EObjectImpl
-	attributes ecore.EList
-	classes    ecore.EList
-	classifier EClassifier
-	operation  EOperation
-	target     EObject
+	attributes    ecore.EList
+	classes       ecore.EList
+	classifier    EClassifier
+	operation     EOperation
+	target        EObject
+	lazyInitMutex sync.Mutex
 }
 
 type holderBasics interface {
@@ -62,17 +64,21 @@ func (h *holderImpl) EStaticFeatureCount() int {
 
 // GetAttributes get the value of attributes
 func (h *holderImpl) GetAttributes() ecore.EList {
+	h.lazyInitMutex.Lock()
 	if h.attributes == nil {
 		h.attributes = ecore.NewBasicEObjectList(h.AsEObjectInternal(), HOLDER__ATTRIBUTES, EATTRIBUTE__HOLDER, true, true, true, false, false)
 	}
+	h.lazyInitMutex.Unlock()
 	return h.attributes
 }
 
 // GetClasses get the value of classes
 func (h *holderImpl) GetClasses() ecore.EList {
+	h.lazyInitMutex.Lock()
 	if h.classes == nil {
 		h.classes = ecore.NewBasicEObjectList(h.AsEObjectInternal(), HOLDER__CLASSES, ECLASS__HOLDER, true, true, true, false, false)
 	}
+	h.lazyInitMutex.Unlock()
 	return h.classes
 }
 
@@ -236,9 +242,17 @@ func (h *holderImpl) EUnsetFromID(featureID int) {
 func (h *holderImpl) EIsSetFromID(featureID int) bool {
 	switch featureID {
 	case HOLDER__ATTRIBUTES:
-		return h.attributes != nil && h.attributes.Size() != 0
+		return func() bool {
+			h.lazyInitMutex.Lock()
+			defer h.lazyInitMutex.Unlock()
+			return h.attributes != nil && h.attributes.Size() != 0
+		}()
 	case HOLDER__CLASSES:
-		return h.classes != nil && h.classes.Size() != 0
+		return func() bool {
+			h.lazyInitMutex.Lock()
+			defer h.lazyInitMutex.Unlock()
+			return h.classes != nil && h.classes.Size() != 0
+		}()
 	case HOLDER__CLASSIFIER:
 		return h.classifier != nil
 	case HOLDER__OPERATION:

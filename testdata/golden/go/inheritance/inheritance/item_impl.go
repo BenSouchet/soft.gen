@@ -13,14 +13,16 @@ package inheritance
 
 import (
 	"github.com/masagroup/soft.go/ecore"
+	"sync"
 )
 
 // itemImpl is the implementation of the model object 'Item'
 type itemImpl struct {
 	ecore.EObjectImpl
-	id     string
-	tags   ecore.EList
-	weight float32
+	id            string
+	tags          ecore.EList
+	weight        float32
+	lazyInitMutex sync.Mutex
 }
 
 // newItemImpl is the constructor of a itemImpl
@@ -66,9 +68,11 @@ func (i *itemImpl) SetId(newId string) {
 
 // GetTags get the value of tags
 func (i *itemImpl) GetTags() ecore.EList {
+	i.lazyInitMutex.Lock()
 	if i.tags == nil {
 		i.tags = ecore.NewBasicEDataTypeList(i.AsEObjectInternal(), ITEM__TAGS, true, false)
 	}
+	i.lazyInitMutex.Unlock()
 	return i.tags
 }
 
@@ -145,7 +149,11 @@ func (i *itemImpl) EIsSetFromID(featureID int) bool {
 	case ITEM__ID:
 		return i.id != ""
 	case ITEM__TAGS:
-		return i.tags != nil && i.tags.Size() != 0
+		return func() bool {
+			i.lazyInitMutex.Lock()
+			defer i.lazyInitMutex.Unlock()
+			return i.tags != nil && i.tags.Size() != 0
+		}()
 	case ITEM__WEIGHT:
 		return i.weight != 0.0
 	default:
