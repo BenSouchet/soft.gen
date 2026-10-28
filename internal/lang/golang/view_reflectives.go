@@ -241,7 +241,13 @@ func (g *gen) comparison(v *featureView, info *model.FeatureInfo) string {
 	switch {
 	case !any && info.IsList:
 		if info.IsField {
-			return value + " != nil && " + value + ".Size() != 0"
+			set := value + " != nil && " + value + ".Size() != 0"
+			if v.GetterStrategy == "list" {
+				// The getter builds the field under the mutex of the object, so it is read under it.
+				mutex := v.Receiver + "." + lazyInitMutex
+				return "func() bool { " + mutex + ".Lock(); defer " + mutex + ".Unlock(); return " + set + " }()"
+			}
+			return set
 		}
 		return value + ".Size() != 0"
 	case !any && info.Attribute != nil:

@@ -13,18 +13,20 @@ package shop
 
 import (
 	"github.com/masagroup/soft.go/ecore"
+	"sync"
 )
 
 // customerImpl is the implementation of the model object 'Customer'
 type customerImpl struct {
 	ecore.EObjectImpl
-	advisor      Customer
-	favorite     Product
-	favoriteESet bool
-	name         string
-	orders       ecore.EList
-	referrals    ecore.EList
-	referrer     Customer
+	advisor       Customer
+	favorite      Product
+	favoriteESet  bool
+	name          string
+	orders        ecore.EList
+	referrals     ecore.EList
+	referrer      Customer
+	lazyInitMutex sync.Mutex
 }
 
 type customerBasics interface {
@@ -137,17 +139,21 @@ func (c *customerImpl) SetName(newName string) {
 
 // GetOrders get the value of orders
 func (c *customerImpl) GetOrders() ecore.EList {
+	c.lazyInitMutex.Lock()
 	if c.orders == nil {
 		c.orders = ecore.NewBasicEObjectList(c.AsEObjectInternal(), CUSTOMER__ORDERS, ORDER__CUSTOMER, true, true, true, false, false)
 	}
+	c.lazyInitMutex.Unlock()
 	return c.orders
 }
 
 // GetReferrals get the value of referrals
 func (c *customerImpl) GetReferrals() ecore.EList {
+	c.lazyInitMutex.Lock()
 	if c.referrals == nil {
 		c.referrals = ecore.NewBasicEObjectList(c.AsEObjectInternal(), CUSTOMER__REFERRALS, CUSTOMER__REFERRER, false, true, true, true, false)
 	}
+	c.lazyInitMutex.Unlock()
 	return c.referrals
 }
 
@@ -287,9 +293,17 @@ func (c *customerImpl) EIsSetFromID(featureID int) bool {
 	case CUSTOMER__NAME:
 		return c.name != ""
 	case CUSTOMER__ORDERS:
-		return c.orders != nil && c.orders.Size() != 0
+		return func() bool {
+			c.lazyInitMutex.Lock()
+			defer c.lazyInitMutex.Unlock()
+			return c.orders != nil && c.orders.Size() != 0
+		}()
 	case CUSTOMER__REFERRALS:
-		return c.referrals != nil && c.referrals.Size() != 0
+		return func() bool {
+			c.lazyInitMutex.Lock()
+			defer c.lazyInitMutex.Unlock()
+			return c.referrals != nil && c.referrals.Size() != 0
+		}()
 	case CUSTOMER__REFERRER:
 		return c.referrer != nil
 	default:

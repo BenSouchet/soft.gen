@@ -13,14 +13,16 @@ package shop
 
 import (
 	"github.com/masagroup/soft.go/ecore"
+	"sync"
 )
 
 // shopImpl is the implementation of the model object 'Shop'
 type shopImpl struct {
 	ecore.EObjectImpl
-	customers ecore.EList
-	name      string
-	products  ecore.EList
+	customers     ecore.EList
+	name          string
+	products      ecore.EList
+	lazyInitMutex sync.Mutex
 }
 
 // newShopImpl is the constructor of a shopImpl
@@ -51,9 +53,11 @@ func (s *shopImpl) EStaticFeatureCount() int {
 
 // GetCustomers get the value of customers
 func (s *shopImpl) GetCustomers() ecore.EList {
+	s.lazyInitMutex.Lock()
 	if s.customers == nil {
 		s.customers = ecore.NewBasicEObjectList(s.AsEObjectInternal(), SHOP__CUSTOMERS, -1, true, true, false, false, false)
 	}
+	s.lazyInitMutex.Unlock()
 	return s.customers
 }
 
@@ -73,9 +77,11 @@ func (s *shopImpl) SetName(newName string) {
 
 // GetProducts get the value of products
 func (s *shopImpl) GetProducts() ecore.EList {
+	s.lazyInitMutex.Lock()
 	if s.products == nil {
 		s.products = ecore.NewBasicEObjectList(s.AsEObjectInternal(), SHOP__PRODUCTS, PRODUCT__SHOP, true, true, true, false, false)
 	}
+	s.lazyInitMutex.Unlock()
 	return s.products
 }
 
@@ -125,11 +131,19 @@ func (s *shopImpl) EUnsetFromID(featureID int) {
 func (s *shopImpl) EIsSetFromID(featureID int) bool {
 	switch featureID {
 	case SHOP__CUSTOMERS:
-		return s.customers != nil && s.customers.Size() != 0
+		return func() bool {
+			s.lazyInitMutex.Lock()
+			defer s.lazyInitMutex.Unlock()
+			return s.customers != nil && s.customers.Size() != 0
+		}()
 	case SHOP__NAME:
 		return s.name != ""
 	case SHOP__PRODUCTS:
-		return s.products != nil && s.products.Size() != 0
+		return func() bool {
+			s.lazyInitMutex.Lock()
+			defer s.lazyInitMutex.Unlock()
+			return s.products != nil && s.products.Size() != 0
+		}()
 	default:
 		return s.EObjectImpl.EIsSetFromID(featureID)
 	}

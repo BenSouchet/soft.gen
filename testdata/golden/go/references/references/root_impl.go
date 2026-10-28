@@ -13,21 +13,23 @@ package references
 
 import (
 	"github.com/masagroup/soft.go/ecore"
+	"sync"
 )
 
 // rootImpl is the implementation of the model object 'Root'
 type rootImpl struct {
 	ecore.EObjectImpl
-	children ecore.EList
-	direct   Item
-	favorite Item
-	fixed    Fixed
-	items    ecore.EList
-	links    ecore.EList
-	locals   ecore.EList
-	marks    ecore.EList
-	optional Item
-	shared   Item
+	children      ecore.EList
+	direct        Item
+	favorite      Item
+	fixed         Fixed
+	items         ecore.EList
+	links         ecore.EList
+	locals        ecore.EList
+	marks         ecore.EList
+	optional      Item
+	shared        Item
+	lazyInitMutex sync.Mutex
 }
 
 type rootBasics interface {
@@ -68,9 +70,11 @@ func (r *rootImpl) EStaticFeatureCount() int {
 
 // GetChildren get the value of children
 func (r *rootImpl) GetChildren() ecore.EList {
+	r.lazyInitMutex.Lock()
 	if r.children == nil {
 		r.children = ecore.NewBasicEObjectList(r.AsEObjectInternal(), ROOT__CHILDREN, CHILD__PARENT, true, true, true, false, false)
 	}
+	r.lazyInitMutex.Unlock()
 	return r.children
 }
 
@@ -155,33 +159,41 @@ func (r *rootImpl) basicSetFixed(newFixed Fixed, msgs ecore.ENotificationChain) 
 
 // GetItems get the value of items
 func (r *rootImpl) GetItems() ecore.EList {
+	r.lazyInitMutex.Lock()
 	if r.items == nil {
 		r.items = ecore.NewBasicEObjectList(r.AsEObjectInternal(), ROOT__ITEMS, -1, true, true, false, false, false)
 	}
+	r.lazyInitMutex.Unlock()
 	return r.items
 }
 
 // GetLinks get the value of links
 func (r *rootImpl) GetLinks() ecore.EList {
+	r.lazyInitMutex.Lock()
 	if r.links == nil {
 		r.links = ecore.NewBasicEObjectList(r.AsEObjectInternal(), ROOT__LINKS, -1, false, false, false, true, false)
 	}
+	r.lazyInitMutex.Unlock()
 	return r.links
 }
 
 // GetLocals get the value of locals
 func (r *rootImpl) GetLocals() ecore.EList {
+	r.lazyInitMutex.Lock()
 	if r.locals == nil {
 		r.locals = ecore.NewBasicEObjectList(r.AsEObjectInternal(), ROOT__LOCALS, -1, false, false, false, false, false)
 	}
+	r.lazyInitMutex.Unlock()
 	return r.locals
 }
 
 // GetMarks get the value of marks
 func (r *rootImpl) GetMarks() ecore.EList {
+	r.lazyInitMutex.Lock()
 	if r.marks == nil {
 		r.marks = ecore.NewBasicEObjectList(r.AsEObjectInternal(), ROOT__MARKS, -1, false, false, false, true, true)
 	}
+	r.lazyInitMutex.Unlock()
 	return r.marks
 }
 
@@ -194,7 +206,11 @@ func (r *rootImpl) UnsetMarks() {
 
 // IsSetMarks get if the value of marks is set
 func (r *rootImpl) IsSetMarks() bool {
-	return r.marks != nil && r.marks.Size() != 0
+	return func() bool {
+		r.lazyInitMutex.Lock()
+		defer r.lazyInitMutex.Unlock()
+		return r.marks != nil && r.marks.Size() != 0
+	}()
 }
 
 // GetOptional get the value of optional
@@ -379,7 +395,11 @@ func (r *rootImpl) EUnsetFromID(featureID int) {
 func (r *rootImpl) EIsSetFromID(featureID int) bool {
 	switch featureID {
 	case ROOT__CHILDREN:
-		return r.children != nil && r.children.Size() != 0
+		return func() bool {
+			r.lazyInitMutex.Lock()
+			defer r.lazyInitMutex.Unlock()
+			return r.children != nil && r.children.Size() != 0
+		}()
 	case ROOT__DIRECT:
 		return r.direct != nil
 	case ROOT__FAVORITE:
@@ -387,13 +407,29 @@ func (r *rootImpl) EIsSetFromID(featureID int) bool {
 	case ROOT__FIXED:
 		return r.fixed != nil
 	case ROOT__ITEMS:
-		return r.items != nil && r.items.Size() != 0
+		return func() bool {
+			r.lazyInitMutex.Lock()
+			defer r.lazyInitMutex.Unlock()
+			return r.items != nil && r.items.Size() != 0
+		}()
 	case ROOT__LINKS:
-		return r.links != nil && r.links.Size() != 0
+		return func() bool {
+			r.lazyInitMutex.Lock()
+			defer r.lazyInitMutex.Unlock()
+			return r.links != nil && r.links.Size() != 0
+		}()
 	case ROOT__LOCALS:
-		return r.locals != nil && r.locals.Size() != 0
+		return func() bool {
+			r.lazyInitMutex.Lock()
+			defer r.lazyInitMutex.Unlock()
+			return r.locals != nil && r.locals.Size() != 0
+		}()
 	case ROOT__MARKS:
-		return r.marks != nil && r.marks.Size() != 0
+		return func() bool {
+			r.lazyInitMutex.Lock()
+			defer r.lazyInitMutex.Unlock()
+			return r.marks != nil && r.marks.Size() != 0
+		}()
 	case ROOT__OPTIONAL:
 		return r.optional != nil
 	case ROOT__SHARED:

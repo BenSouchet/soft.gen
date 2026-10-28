@@ -13,21 +13,23 @@ package lazy
 
 import (
 	"github.com/masagroup/soft.go/ecore"
+	"sync"
 )
 
 // holderImpl is the implementation of the model object 'Holder'
 type holderImpl struct {
 	ecore.EObjectImpl
-	assigned  Item
-	cache     ecore.EList
-	computed  Item
-	favorite  Item
-	items     ecore.EList
-	links     ecore.EList
-	note      string
-	preferred Item
-	tags      ecore.EList
-	title     string
+	assigned      Item
+	cache         ecore.EList
+	computed      Item
+	favorite      Item
+	items         ecore.EList
+	links         ecore.EList
+	note          string
+	preferred     Item
+	tags          ecore.EList
+	title         string
+	lazyInitMutex sync.Mutex
 }
 type holderInitializers interface {
 	initAssigned()
@@ -171,9 +173,11 @@ func (h *holderImpl) GetItems() ecore.EList {
 
 // GetLinks get the value of links
 func (h *holderImpl) GetLinks() ecore.EList {
+	h.lazyInitMutex.Lock()
 	if h.links == nil {
 		h.links = ecore.NewBasicEObjectList(h.AsEObjectInternal(), HOLDER__LINKS, -1, false, false, false, true, false)
 	}
+	h.lazyInitMutex.Unlock()
 	return h.links
 }
 
@@ -400,7 +404,11 @@ func (h *holderImpl) EIsSetFromID(featureID int) bool {
 	case HOLDER__ITEMS:
 		return h.items != nil && h.items.Size() != 0
 	case HOLDER__LINKS:
-		return h.links != nil && h.links.Size() != 0
+		return func() bool {
+			h.lazyInitMutex.Lock()
+			defer h.lazyInitMutex.Unlock()
+			return h.links != nil && h.links.Size() != 0
+		}()
 	case HOLDER__NOTE:
 		return h.note != ""
 	case HOLDER__PREFERRED:

@@ -11,11 +11,16 @@
 
 package ecore
 
+import (
+	"sync"
+)
+
 // treeImpl is the implementation of the model object 'Tree'
 type treeImpl struct {
 	EObjectImpl
-	name  string
-	nodes EList
+	name          string
+	nodes         EList
+	lazyInitMutex sync.Mutex
 }
 
 // newTreeImpl is the constructor of a treeImpl
@@ -65,9 +70,11 @@ func (t *treeImpl) SetName(newName string) {
 
 // GetNodes get the value of nodes
 func (t *treeImpl) GetNodes() EList {
+	t.lazyInitMutex.Lock()
 	if t.nodes == nil {
 		t.nodes = NewBasicEObjectList(t.AsEObjectInternal(), TREE__NODES, NODE__PARENT, true, true, true, false, false)
 	}
+	t.lazyInitMutex.Unlock()
 	return t.nodes
 }
 
@@ -111,7 +118,11 @@ func (t *treeImpl) EIsSetFromID(featureID int) bool {
 	case TREE__NAME:
 		return t.name != ""
 	case TREE__NODES:
-		return t.nodes != nil && t.nodes.Size() != 0
+		return func() bool {
+			t.lazyInitMutex.Lock()
+			defer t.lazyInitMutex.Unlock()
+			return t.nodes != nil && t.nodes.Size() != 0
+		}()
 	default:
 		return t.EObjectImpl.EIsSetFromID(featureID)
 	}

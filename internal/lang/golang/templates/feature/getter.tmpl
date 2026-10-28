@@ -49,11 +49,13 @@ func ({{ .Receiver }} *{{ .Impl }}) {{ .Getter }}() {{ .Type }} {
 	return {{ .Receiver }}.{{ .Var }}
 {{- end }}
 
-{{/* A list or a map, built on first read. */}}
+{{/* A list or a map, built on first read under the mutex of the object. */}}
 {{ define "feature/getter.list" -}}
+	{{ .Receiver }}.lazyInitMutex.Lock()
 	if {{ .Receiver }}.{{ .Var }} == nil {
 		{{ .Receiver }}.{{ .Var }} = {{ .Constructor }}
 	}
+	{{ .Receiver }}.lazyInitMutex.Unlock()
 	return {{ .Receiver }}.{{ .Var }}
 {{- end }}
 

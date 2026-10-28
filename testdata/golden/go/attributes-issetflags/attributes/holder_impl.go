@@ -14,6 +14,7 @@ package attributes
 import (
 	"github.com/masagroup/soft.go/ecore"
 	"reflect"
+	"sync"
 	"time"
 )
 
@@ -53,6 +54,7 @@ type holderImpl struct {
 	values          ecore.EList
 	when            *time.Time
 	whenESet        bool
+	lazyInitMutex   sync.Mutex
 }
 
 // newHolderImpl is the constructor of a holderImpl
@@ -232,9 +234,11 @@ func (h *holderImpl) SetMedium(newMedium int32) {
 
 // GetMixed get the value of mixed
 func (h *holderImpl) GetMixed() ecore.EList {
+	h.lazyInitMutex.Lock()
 	if h.mixed == nil {
 		h.mixed = nil
 	}
+	h.lazyInitMutex.Unlock()
 	return h.mixed
 }
 
@@ -300,9 +304,11 @@ func (h *holderImpl) SetSmall(newSmall int8) {
 
 // GetTags get the value of tags
 func (h *holderImpl) GetTags() ecore.EList {
+	h.lazyInitMutex.Lock()
 	if h.tags == nil {
 		h.tags = ecore.NewBasicEDataTypeList(h.AsEObjectInternal(), HOLDER__TAGS, true, true)
 	}
+	h.lazyInitMutex.Unlock()
 	return h.tags
 }
 
@@ -315,7 +321,11 @@ func (h *holderImpl) UnsetTags() {
 
 // IsSetTags get if the value of tags is set
 func (h *holderImpl) IsSetTags() bool {
-	return h.tags != nil && h.tags.Size() != 0
+	return func() bool {
+		h.lazyInitMutex.Lock()
+		defer h.lazyInitMutex.Unlock()
+		return h.tags != nil && h.tags.Size() != 0
+	}()
 }
 
 // GetTemperature get the value of temperature
@@ -350,9 +360,11 @@ func (h *holderImpl) SetType(newType_ string) {
 
 // GetValues get the value of values
 func (h *holderImpl) GetValues() ecore.EList {
+	h.lazyInitMutex.Lock()
 	if h.values == nil {
 		h.values = ecore.NewBasicEDataTypeList(h.AsEObjectInternal(), HOLDER__VALUES, true, false)
 	}
+	h.lazyInitMutex.Unlock()
 	return h.values
 }
 
@@ -547,7 +559,11 @@ func (h *holderImpl) EIsSetFromID(featureID int) bool {
 	case HOLDER__MEDIUM:
 		return h.mediumESet
 	case HOLDER__MIXED:
-		return h.mixed != nil && h.mixed.Size() != 0
+		return func() bool {
+			h.lazyInitMutex.Lock()
+			defer h.lazyInitMutex.Unlock()
+			return h.mixed != nil && h.mixed.Size() != 0
+		}()
 	case HOLDER__OCTET:
 		return h.octetESet
 	case HOLDER__RANGE:
@@ -557,13 +573,21 @@ func (h *holderImpl) EIsSetFromID(featureID int) bool {
 	case HOLDER__SMALL:
 		return h.smallESet
 	case HOLDER__TAGS:
-		return h.tags != nil && h.tags.Size() != 0
+		return func() bool {
+			h.lazyInitMutex.Lock()
+			defer h.lazyInitMutex.Unlock()
+			return h.tags != nil && h.tags.Size() != 0
+		}()
 	case HOLDER__TEMPERATURE:
 		return h.temperatureESet
 	case HOLDER__TYPE:
 		return h.type_ESet
 	case HOLDER__VALUES:
-		return h.values != nil && h.values.Size() != 0
+		return func() bool {
+			h.lazyInitMutex.Lock()
+			defer h.lazyInitMutex.Unlock()
+			return h.values != nil && h.values.Size() != 0
+		}()
 	case HOLDER__WHEN:
 		return h.whenESet
 	default:

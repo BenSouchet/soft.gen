@@ -13,13 +13,15 @@ package maps
 
 import (
 	"github.com/masagroup/soft.go/ecore"
+	"sync"
 )
 
 // namesToAnyEntryImpl is the implementation of the model object 'NamesToAnyEntry'
 type namesToAnyEntryImpl struct {
 	ecore.EObjectImpl
-	key   ecore.EList
-	value any
+	key           ecore.EList
+	value         any
+	lazyInitMutex sync.Mutex
 }
 
 // newNamesToAnyEntryImpl is the constructor of a namesToAnyEntryImpl
@@ -65,9 +67,11 @@ func (n *namesToAnyEntryImpl) SetValue(value any) {
 
 // GetTypedKey get the value of key
 func (n *namesToAnyEntryImpl) GetTypedKey() ecore.EList {
+	n.lazyInitMutex.Lock()
 	if n.key == nil {
 		n.key = ecore.NewBasicEDataTypeList(n.AsEObjectInternal(), NAMES_TO_ANY_ENTRY__KEY, true, false)
 	}
+	n.lazyInitMutex.Unlock()
 	return n.key
 }
 
@@ -123,7 +127,11 @@ func (n *namesToAnyEntryImpl) EUnsetFromID(featureID int) {
 func (n *namesToAnyEntryImpl) EIsSetFromID(featureID int) bool {
 	switch featureID {
 	case NAMES_TO_ANY_ENTRY__KEY:
-		return n.key != nil && n.key.Size() != 0
+		return func() bool {
+			n.lazyInitMutex.Lock()
+			defer n.lazyInitMutex.Unlock()
+			return n.key != nil && n.key.Size() != 0
+		}()
 	case NAMES_TO_ANY_ENTRY__VALUE:
 		return n.value != nil
 	default:

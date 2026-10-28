@@ -130,6 +130,12 @@ type fieldView struct {
 	Name, Type string
 }
 
+// lazyInitMutex is the field guarding the lists and maps a getter builds on first read: concurrent
+// first readers would each build one and lose what was added to the other. One mutex per object
+// costs 8 bytes whatever the number of such features, where a sync.Once per feature costs 16 each,
+// and a Once would not see the setters, unsetters and extensions that assign the field directly.
+const lazyInitMutex = "lazyInitMutex"
+
 // methodSetView is one of the private interfaces of the implementation
 // (initializers, basics): its name and its method declarations.
 type methodSetView struct {
@@ -181,6 +187,12 @@ func (g *gen) implementationFile(c ecore.EClass) []engine.File {
 		views[f] = fv
 		view.Features = append(view.Features, fv)
 		g.addFeature(view, fv, g.feature(f), reflective)
+	}
+	for _, fv := range view.Features {
+		if fv.GetterStrategy == "list" {
+			view.Fields = append(view.Fields, fieldView{Name: lazyInitMutex, Type: scope.qualify("sync/sync.Mutex")})
+			break
+		}
 	}
 	for _, op := range g.sortedByOperationName(info.ImplementedOperations) {
 		if g.m.Operation(op).IsDefault {
