@@ -13,13 +13,15 @@ package references
 
 import (
 	"github.com/masagroup/soft.go/ecore"
+	"sync"
 )
 
 // husbandImpl is the implementation of the model object 'Husband'
 type husbandImpl struct {
 	ecore.EObjectImpl
-	friends ecore.EList
-	wife    Wife
+	friends       ecore.EList
+	wife          Wife
+	lazyInitMutex sync.Mutex
 }
 
 type husbandBasics interface {
@@ -58,9 +60,11 @@ func (h *husbandImpl) EStaticFeatureCount() int {
 
 // GetFriends get the value of friends
 func (h *husbandImpl) GetFriends() ecore.EList {
+	h.lazyInitMutex.Lock()
 	if h.friends == nil {
 		h.friends = ecore.NewBasicEObjectList(h.AsEObjectInternal(), HUSBAND__FRIENDS, WIFE__FRIEND, false, true, true, true, false)
 	}
+	h.lazyInitMutex.Unlock()
 	return h.friends
 }
 
@@ -163,7 +167,11 @@ func (h *husbandImpl) EUnsetFromID(featureID int) {
 func (h *husbandImpl) EIsSetFromID(featureID int) bool {
 	switch featureID {
 	case HUSBAND__FRIENDS:
-		return h.friends != nil && h.friends.Size() != 0
+		return func() bool {
+			h.lazyInitMutex.Lock()
+			defer h.lazyInitMutex.Unlock()
+			return h.friends != nil && h.friends.Size() != 0
+		}()
 	case HUSBAND__WIFE:
 		return h.wife != nil
 	default:

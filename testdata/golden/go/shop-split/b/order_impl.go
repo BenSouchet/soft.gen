@@ -14,14 +14,16 @@ package impl
 import (
 	"github.com/masagroup/soft.go/ecore"
 	shop "github.com/x/a"
+	"sync"
 	"time"
 )
 
 // orderImpl is the implementation of the model object 'Order'
 type orderImpl struct {
 	ecore.EObjectImpl
-	date     *time.Time
-	products ecore.EList
+	date          *time.Time
+	products      ecore.EList
+	lazyInitMutex sync.Mutex
 }
 
 type orderBasics interface {
@@ -105,9 +107,11 @@ func (o *orderImpl) SetDate(newDate *time.Time) {
 
 // GetProducts get the value of products
 func (o *orderImpl) GetProducts() ecore.EList {
+	o.lazyInitMutex.Lock()
 	if o.products == nil {
 		o.products = ecore.NewBasicEObjectList(o.AsEObjectInternal(), shop.ORDER__PRODUCTS, -1, false, false, false, true, false)
 	}
+	o.lazyInitMutex.Unlock()
 	return o.products
 }
 
@@ -170,7 +174,11 @@ func (o *orderImpl) EIsSetFromID(featureID int) bool {
 	case shop.ORDER__DATE:
 		return o.date != nil
 	case shop.ORDER__PRODUCTS:
-		return o.products != nil && o.products.Size() != 0
+		return func() bool {
+			o.lazyInitMutex.Lock()
+			defer o.lazyInitMutex.Unlock()
+			return o.products != nil && o.products.Size() != 0
+		}()
 	default:
 		return o.EObjectImpl.EIsSetFromID(featureID)
 	}
