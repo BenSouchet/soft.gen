@@ -186,7 +186,7 @@ func (g *gen) implementationFile(c ecore.EClass) []engine.File {
 		fv := g.featureView(c, f, scope)
 		views[f] = fv
 		view.Features = append(view.Features, fv)
-		g.addFeature(view, fv, g.feature(f), reflective)
+		g.addFeature(view, fv, g.m.Feature(f), reflective)
 	}
 	for _, fv := range view.Features {
 		if fv.GetterStrategy == "list" {

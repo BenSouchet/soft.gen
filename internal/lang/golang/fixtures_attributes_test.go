@@ -18,15 +18,6 @@ func init() {
 			"attributes/holder_impl_test.go": v1GoIntTestValue,
 			"attributes/holder_mock_test.go": v1GoIntTestValue,
 		}})
-	// With isSetFlags, every single-valued changeable attribute keeps the ESet flag of the unsettable
-	// one: the setter raises it, EIsSet reads it, EUnset sets the default and lowers it.
-	register(fixture{Name: "attributes-issetflags", Model: "attributes.ecore",
-		Props: map[string]string{"isSetFlags": "true"},
-		V1Differences: map[string]string{
-			"attributes/holder_impl.go":      v1IsSetFlags,
-			"attributes/holder_impl_test.go": v1GoIntTestValue,
-			"attributes/holder_mock_test.go": v1GoIntTestValue,
-		}})
 	// With floatFormat=xsd, the float data types are written by ecore.FormatFloatXSD.
 	register(fixture{Name: "attributes-floatxsd", Model: "attributes.ecore",
 		Props: map[string]string{"floatFormat": "xsd"},
@@ -39,6 +30,3 @@ func init() {
 
 // v1FloatFormat is why the factory differs from v1 with the property floatFormat=xsd.
 const v1FloatFormat = "v1 writes floats with strconv.FormatFloat: Go's +Inf, -Inf, and 309 digits for 1.7976931348623157e+308"
-
-// v1IsSetFlags is why the implementation differs from v1 with the property isSetFlags.
-const v1IsSetFlags = "v1 has no isSetFlags: an attribute set to its default reads as unset"

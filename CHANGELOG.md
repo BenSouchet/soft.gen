@@ -77,14 +77,6 @@ templates alike:
   `new BasicEDataTypeList(this, id, unique, unsettable)` (soft.ts after v1.8.0),
   so the code of the other attributes is unchanged.
 
-With the new Go property `isSetFlags=true`, every single-valued changeable
-attribute keeps the ESet flag too, without being unsettable in the model: its
-setter raises the flag, `EIsSetFromID` returns it, and `EUnsetFromID` sets
-the default then lowers it; no unsetter nor issetter is generated. An
-attribute set to its default then reads as set, as in a document that wrote
-it. An attribute of a pointer or slice type (a date, bytes) set to nil reads
-as unset: nil is no value, there is nothing to write.
-
 Fixed with it:
 
 - `ESetFromID` sets nil to an attribute of a type nil is a value of (Go: a

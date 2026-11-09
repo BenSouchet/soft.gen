@@ -29,10 +29,8 @@ type featureView struct {
 	// The accessor names.
 	Getter, Setter, Unsetter, IsSetter, BasicGetter, BasicSetter, BasicUnsetter, InitMethod string
 	// ESetVar is the flag field telling whether an unsettable single field is
-	// set (EMF xxxESet), "" when the feature has none; ESetValue the value its
-	// setter gives it: true, or NewVar != nil for an attribute of a nillable
-	// type that only isSetFlags flags, nil being no value to keep.
-	ESetVar, ESetValue string
+	// set (EMF xxxESet), "" when the feature has none.
+	ESetVar string
 	// NewVar and OldVar are the local variables of the setters.
 	NewVar, OldVar string
 	// ID is the feature id constant in the class; ReverseID the id of the
@@ -81,7 +79,7 @@ type initMethodView struct {
 
 // featureView builds the view of a feature implemented by the class.
 func (g *gen) featureView(c ecore.EClass, f ecore.EStructuralFeature, scope *fileScope) *featureView {
-	info := g.feature(f)
+	info := g.m.Feature(f)
 	e := g.ecoreNames(scope)
 	v := &featureView{
 		ecoreNames:   e,
@@ -103,18 +101,15 @@ func (g *gen) featureView(c ecore.EClass, f ecore.EStructuralFeature, scope *fil
 		UnsetterBody: g.m.Annotation(f).Value("unsetterBody"),
 		IsSetterBody: g.m.Annotation(f).Value("isSetBody"),
 	}
+	if info.HasESet && !g.IsReflectiveDelegation() {
+		v.ESetVar = v.Var + "ESet"
+	}
 	v.BasicGetter = "basic" + naming.UpperFirst(v.Getter)
 	v.BasicSetter = "basic" + naming.UpperFirst(v.Setter)
 	v.BasicUnsetter = "basic" + naming.UpperFirst(v.Unsetter)
 	v.NewVar = "new" + naming.UpperFirst(v.Var)
 	v.OldVar = "old" + naming.UpperFirst(v.Var)
 	v.Nillable = isNillableType(v.Type)
-	if info.HasESet && !g.IsReflectiveDelegation() {
-		v.ESetVar, v.ESetValue = v.Var+"ESet", "true"
-		if info.Attribute != nil && !info.IsUnsettable && v.Nillable {
-			v.ESetValue = v.NewVar + " != nil"
-		}
-	}
 	// v1 tests isAnyType(eType.getType()): the type of the classifier, even
 	// for a list; the generated type is tested instead, so that a list of the
 	// any type is still asserted to EList (v1 did not compile there).
@@ -362,7 +357,7 @@ func (g *gen) isSetterStrategy(v *featureView, info *model.FeatureInfo, reflecti
 // attribute (nil for a feature map), an object map for a map reference, an
 // object list for a reference with the four flag tuples of v1.
 func (g *gen) listConstructor(c ecore.EClass, f ecore.EStructuralFeature, scope *fileScope) string {
-	info := g.feature(f)
+	info := g.m.Feature(f)
 	ecore := func(name string) string { return scope.qualify(g.qualifiedInterfaceIdentifier(g.m.Ecore(), name)) }
 	receiver := receiverName(c) + ".AsEObjectInternal()"
 	id := g.featureID(c, f, scope)
@@ -459,7 +454,7 @@ func (g *gen) initMethodView(v *featureView, info *model.FeatureInfo) initMethod
 // setter when changeable and single, the unsetter when changeable and
 // unsettable, the issetter when unsettable.
 func (g *gen) featureDeclarations(f ecore.EStructuralFeature, scope *fileScope) []string {
-	info := g.feature(f)
+	info := g.m.Feature(f)
 	t := scope.qualify(g.typeOf(f))
 	decls := []string{g.getterName(f) + "() " + t}
 	if info.Set {
